@@ -150,7 +150,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $errorMessage = "Rating must be between 1 and 5.";
                 $showPerformanceReview = true;
             } else {
-                $stmt = $pdo->prepare("INSERT INTO performance_reviews (employee_id, rating, comments, submission_date) VALUES (?, ?, ?, CURDATE())");
+                $stmt = $pdo->prepare("INSERT INTO performance_reviews (employee_id, rating, comments) VALUES (?, ?, ?)");
                 $success = $stmt->execute([$employeeId, $rating, $comments]);
                 if ($success) {
                     $successMessage = "Performance review submitted successfully!";
@@ -163,14 +163,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
 
         // Provide Feedback
-        if (isset($_POST['feedback'])) {
-            $feedback_text = $_POST['feedback_text'];
-            if (empty($feedback_text)) {
-                $errorMessage = "Feedback text is required.";
+        if (isset($_POST['employee_feedback'])) {
+            $feedback_title = trim($_POST['feedback_title']);
+            $feedback_text = trim($_POST['feedback_text']);
+
+            if (empty($feedback_title) || empty($feedback_text)) {
+                $errorMessage = "Feedback title and text are required.";
                 $showFeedback = true;
             } else {
-                $stmt = $pdo->prepare("INSERT INTO feedback (employee_id, feedback_text, submission_date) VALUES (?, ?, CURDATE())");
-                $success = $stmt->execute([$employeeId, $feedback_text]);
+                $stmt = $pdo->prepare("INSERT INTO employee_feedback (employee_id, title, description) VALUES (?, ?, ?)");
+                $success = $stmt->execute([$employeeId, $feedback_title, $feedback_text]);
+                
                 if ($success) {
                     $successMessage = "Feedback submitted successfully!";
                     $showFeedback = true;
@@ -180,6 +183,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 }
             }
         }
+
     } catch (PDOException $e) {
         $errorMessage = "Database error: " . $e->getMessage();
         if (isset($_POST['update_info'])) $showUpdate = true;
@@ -825,15 +829,22 @@ if ($showSchedule) {
                         <span class="card-title">Provide Feedback</span>
                         <div class="card-icon bg-secondary"><i class="fas fa-comment-dots"></i></div>
                     </div>
-                    <?php if ($errorMessage): ?>
+
+                    <?php if (!empty($errorMessage)): ?>
                         <div class="message error"><?= htmlspecialchars($errorMessage) ?></div>
                     <?php endif; ?>
-                    <?php if ($successMessage): ?>
+
+                    <?php if (!empty($successMessage)): ?>
                         <div class="message success"><?= htmlspecialchars($successMessage) ?></div>
                     <?php endif; ?>
+
                     <form action="" method="POST" class="form">
-                        <input type="hidden" name="feedback" value="1">
+                        <input type="hidden" name="employee_feedback" value="1">
                         <table class="update-form">
+                            <tr>
+                                <th><label for="feedback_title">Feedback Title</label></th>
+                                <td><input type="text" id="feedback_title" name="feedback_title" required></td>
+                            </tr>
                             <tr>
                                 <th><label for="feedback_text">Feedback</label></th>
                                 <td><textarea id="feedback_text" name="feedback_text" required></textarea></td>
