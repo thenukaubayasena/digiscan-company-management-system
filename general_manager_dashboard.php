@@ -36,7 +36,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if (isset($_POST['approve_leave']) || isset($_POST['reject_leave'])) {
             $leave_id = $_POST['leave_id'];
             $status = isset($_POST['approve_leave']) ? 'Approved' : 'Rejected';
-            $stmt = $pdo->prepare("UPDATE leave_requests SET status = ? WHERE leave_id = ?");
+            $stmt = $pdo->prepare("UPDATE leave_requests SET status = ? WHERE lr_id = ?");
             $success = $stmt->execute([$status, $leave_id]);
             if ($success) {
                 $successMessage = "Leave request $status successfully!";
@@ -85,11 +85,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
 // Fetch data for views
 if ($showLeaveRequests) {
-    $stmt = $pdo->query("SELECT lr.leave_id, lr.EMP_ID, lr.start_date, lr.end_date, lr.reason, lr.status, lr.submitted_at, e.FName, e.LName 
-                         FROM leave_requests lr 
-                         JOIN employees e ON lr.EMP_ID = e.EMP_ID 
-                         WHERE lr.status = 'Pending' 
-                         ORDER BY lr.submitted_at DESC");
+    $stmt = $pdo->query("
+        SELECT lr.lr_id, lr.employee_id, lr.st_date, lr.end_date, lr.reason, lr.status, lr.req_date, 
+               e.FName, e.LName 
+        FROM leave_requests lr 
+        JOIN employees e ON lr.employee_id = e.EMP_ID 
+        WHERE lr.status = 'Pending' 
+        ORDER BY lr.req_date DESC
+    ");
     $leave_requests = $stmt->fetchAll();
 }
 if ($showViewEmployees) {
@@ -102,7 +105,7 @@ if ($showUpdateEmployees && isset($_GET['emp_id'])) {
     $selectedEmployee = $stmt->fetch();
 }
 if ($showReports) {
-    $stmt = $pdo->query("SELECT report_id, title, generated_at, file_path FROM reports ORDER BY generated_at DESC");
+    $stmt = $pdo->query("SELECT * FROM reports ORDER BY generated_at DESC");
     $reports = $stmt->fetchAll();
 }
 if ($showCustomerFeedback) {
@@ -483,7 +486,6 @@ if ($showDepartmentalBudgets) {
                     <div class="user-avatar"><?= $avatar ?></div>
                 </div>
             </div>
-
             <div class="dashboard-cards">
                 <?php if ($showLeaveRequests && $leave_requests): ?>
                 <div class="card">
@@ -509,13 +511,13 @@ if ($showDepartmentalBudgets) {
                         <?php foreach ($leave_requests as $request): ?>
                         <tr>
                             <td><?= htmlspecialchars($request['FName'] . ' ' . $request['LName']) ?></td>
-                            <td><?= htmlspecialchars($request['start_date']) ?></td>
+                            <td><?= htmlspecialchars($request['st_date']) ?></td>
                             <td><?= htmlspecialchars($request['end_date']) ?></td>
                             <td><?= htmlspecialchars($request['reason']) ?></td>
-                            <td><?= htmlspecialchars($request['submitted_at']) ?></td>
+                            <td><?= htmlspecialchars($request['req_date']) ?></td>
                             <td>
                                 <form action="" method="POST" style="display: inline;">
-                                    <input type="hidden" name="leave_id" value="<?= $request['leave_id'] ?>">
+                                    <input type="hidden" name="leave_id" value="<?= $request['lr_id'] ?>">
                                     <button type="submit" name="approve_leave" class="action-btn approve-btn"><i class="fas fa-check"></i> Approve</button>
                                     <button type="submit" name="reject_leave" class="action-btn reject-btn"><i class="fas fa-times"></i> Reject</button>
                                 </form>
@@ -600,26 +602,33 @@ if ($showDepartmentalBudgets) {
                         <a href="?view=view_employees" class="btn" style="background-color: #666; margin-left: 10px;"><i class="fas fa-times"></i> Cancel</a>
                     </form>
                 </div>
-                <?php elseif ($showReports && $reports): ?>
+                <?php elseif ($showReports): ?>
                 <div class="card">
                     <div class="card-header">
-                        <span class="card-title">Reports</span>
-                        <div class="card-icon bg-primary"><i class="fas fa-file-alt"></i></div>
+                        <span class="card-title">View Reports</span>
+                        <div class="card-icon bg-success"><i class="fas fa-file-alt"></i></div>
                     </div>
-                    <table class="data-table">
-                        <tr>
-                            <th>Title</th>
-                            <th>Generated At</th>
-                            <th>File Path</th>
-                        </tr>
-                        <?php foreach ($reports as $report): ?>
-                        <tr>
-                            <td><?= htmlspecialchars($report['title']) ?></td>
-                            <td><?= htmlspecialchars($report['generated_at']) ?></td>
-                            <td><a href="<?= htmlspecialchars($report['file_path']) ?>" class="btn">View</a></td>
-                        </tr>
-                        <?php endforeach; ?>
-                    </table>
+                    
+                    <?php if (!empty($reports)): ?>
+                        <table class="data-table">
+                            <tr>
+                                <th>Report Type</th>
+                                <th>Generated At</th>
+                                <th>File Path</th>
+                            </tr>
+                            <?php foreach ($reports as $report): ?>
+                            <tr>
+                                <td><?= htmlspecialchars($report['report_type']) ?></td>
+                                <td><?= htmlspecialchars($report['generated_at']) ?></td>
+                                <td><?= htmlspecialchars($report['file_path']) ?></td>
+                            </tr>
+                            <?php endforeach; ?>
+                        </table>
+                    <?php else: ?>
+                        <div style="padding: 20px; text-align: center; color: #666;">
+                            No reports found in the system.
+                        </div>
+                    <?php endif; ?>
                 </div>
                 <?php elseif ($showCustomerFeedback && $feedbacks): ?>
                 <div class="card">
